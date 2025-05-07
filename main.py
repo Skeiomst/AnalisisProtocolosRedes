@@ -88,7 +88,8 @@ class NetworkAnalyzerGUI(ctk.CTk):
         def packet_callback(packet):
             if self.is_capturing:
                 packet_info = self.packet_analyzer.capture_packet(packet)
-                self.after(10, lambda: self.add_packet_to_table(packet_info))
+                if packet_info['index'] < 30:
+                    self.after(10, lambda: self.add_packet_to_table(packet_info))
 
         sniff(prn=packet_callback, store=False)
 
