@@ -5,21 +5,22 @@ from threading import Thread
 import time
 
 class NetworkAnalyzerGUI(ctk.CTk):
+    """Interfaz gráfica principal para el analizador de red"""
+    
     def __init__(self):
+        """Inicializa la interfaz gráfica y configura todos los componentes visuales"""
         super().__init__()
 
-        # Configuración de la ventana principal
         self.title("Analizador de Red")
         self.geometry("1200x800")
         ctk.set_appearance_mode("dark")
 
-        # Inicializar el analizador de paquetes
         self.packet_analyzer = PacketAnalyzer()
         self.capture_thread = None
         self.is_capturing = False
         self.is_unique_capturing = False
 
-        # Crear el frame principal
+        # Frame principal
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -72,18 +73,21 @@ class NetworkAnalyzerGUI(ctk.CTk):
         self.table_rows = []
 
     def toggle_capture(self):
+        """Alterna entre iniciar y detener la captura normal de paquetes"""
         if not self.is_capturing:
             self.start_capture()
         else:
             self.stop_capture()
 
     def toggle_unique_capture(self):
+        """Alterna entre iniciar y detener la captura única de paquetes por protocolo"""
         if not self.is_unique_capturing:
             self.start_unique_capture()
         else:
             self.stop_unique_capture()
 
     def capture_unique_packets(self):
+        """Inicia la captura de paquetes únicos por protocolo utilizando Scapy"""
         def packet_callback(packet):
             if self.is_unique_capturing:
                 packet_info = self.packet_analyzer.capture_unique_protocol_packet(packet)
@@ -93,7 +97,7 @@ class NetworkAnalyzerGUI(ctk.CTk):
         sniff(prn=packet_callback, store=False)
 
     def update_button_states(self):
-        """Actualiza el estado de los botones según la situación actual"""
+        """Actualiza el estado de los botones según el estado actual de la captura"""
         if self.is_capturing:
             # Si está capturando normalmente
             self.start_button.configure(state="normal")
@@ -119,6 +123,7 @@ class NetworkAnalyzerGUI(ctk.CTk):
             self.search_entry.configure(state="normal" if has_packets else "disabled")
 
     def start_capture(self):
+        """Inicia la captura normal de paquetes en un hilo separado"""
         self.is_capturing = True
         self.start_button.configure(text="Detener Captura")
         self.update_button_states()
@@ -127,11 +132,13 @@ class NetworkAnalyzerGUI(ctk.CTk):
         self.capture_thread.start()
 
     def stop_capture(self):
+        """Detiene la captura normal de paquetes"""
         self.is_capturing = False
         self.start_button.configure(text="Iniciar Captura")
         self.update_button_states()
 
     def start_unique_capture(self):
+        """Inicia la captura única de paquetes en un hilo separado"""
         self.is_unique_capturing = True
         self.unique_capture_button.configure(text="Detener Captura Única")
         self.update_button_states()
@@ -140,6 +147,7 @@ class NetworkAnalyzerGUI(ctk.CTk):
         self.capture_thread.start()
 
     def stop_unique_capture(self):
+        """Detiene la captura única de paquetes"""
         self.is_unique_capturing = False
         self.unique_capture_button.configure(text="Captura Única")
         self.update_button_states()
@@ -222,6 +230,7 @@ class NetworkAnalyzerGUI(ctk.CTk):
         ctk.CTkLabel(error_window, text=message).pack(padx=20, pady=20)
 
     def capture_packets(self):
+        """Inicia la captura continua de paquetes utilizando Scapy"""
         def packet_callback(packet):
             if self.is_capturing:
                 packet_info = self.packet_analyzer.capture_packet(packet)

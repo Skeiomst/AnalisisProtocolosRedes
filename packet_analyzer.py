@@ -7,7 +7,10 @@ from scapy.layers.dhcp import BOOTP, DHCP
 from dictionaries import *
 
 class PacketAnalyzer:
+    """Clase principal para el análisis y procesamiento de paquetes de red"""
+
     def __init__(self):
+        """Inicializa el analizador de paquetes con las estructuras de datos necesarias"""
         self.packets = []
         self.current_index = 0
         self.protocol_packets = {}
@@ -224,7 +227,7 @@ class PacketAnalyzer:
         return packet_info
 
     def _get_tcp_flags(self, flags):
-        """Convierte los flags TCP a formato legible"""
+        """Convierte los flags TCP a un formato legible"""
         return ' '.join([tcp_flags_dict.get(f, f) for f in str(flags)])
 
     def get_unique_packet(self, index):
@@ -243,5 +246,5 @@ class PacketAnalyzer:
         return None
 
     def get_packet_count(self):
-        """Retorna el número total de paquetes capturados"""
+        """Retorna el número total de paquetes capturados en la sesión actual"""
         return len(self.packets)
