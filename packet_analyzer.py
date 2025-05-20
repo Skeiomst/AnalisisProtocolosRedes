@@ -10,6 +10,8 @@ class PacketAnalyzer:
     def __init__(self):
         self.packets = []
         self.current_index = 0
+        self.protocol_packets = {}
+        self.start_time = None  # Añadimos el tiempo inicial
 
     def capture_packet(self, packet):
         """Captura y analiza un paquete en tiempo real"""
@@ -18,11 +20,34 @@ class PacketAnalyzer:
         self.current_index += 1  # Incrementar el índice después de analizar el paquete
         return packet_info
 
+    def capture_unique_protocol_packet(self, packet):
+        """Captura solo un paquete por cada protocolo"""
+        packet_info = self.analyze_packet(packet)
+        protocol = packet_info['protocol']
+        
+        if protocol not in self.protocol_packets:
+            self.protocol_packets[protocol] = packet_info
+            self.current_index += 1
+            return packet_info
+        return None
+
+    def clear_packets(self):
+        """Limpia todos los paquetes capturados"""
+        self.packets = []
+        self.protocol_packets = {}
+        self.current_index = 0
+        self.start_time = None  # Reiniciar el tiempo inicial
+
     def analyze_packet(self, packet):
         """Analiza un paquete y extrae su información relevante"""
+        if self.start_time is None:
+            self.start_time = packet.time
+            
+        relative_time = packet.time - self.start_time
+        
         packet_info = {
-            'index': self.current_index,  # Usar current_index en lugar de len(self.packets) - 1
-            'time': packet.time,
+            'index': self.current_index,
+            'time': relative_time,  # Tiempo relativo desde el inicio de la captura
             'protocol': 'Unknown',
             'source': '',
             'destination': '',
@@ -201,6 +226,15 @@ class PacketAnalyzer:
     def _get_tcp_flags(self, flags):
         """Convierte los flags TCP a formato legible"""
         return ' '.join([tcp_flags_dict.get(f, f) for f in str(flags)])
+
+    def get_unique_packet(self, index):
+        """Obtiene un paquete específico de la colección de paquetes únicos por protocolo"""
+        # Convertir el diccionario de paquetes únicos a una lista ordenada
+        packets_list = list(self.protocol_packets.values())
+        try:
+            return packets_list[index]  # Restamos 1 porque el índice de usuario empieza en 1
+        except IndexError:
+            return None
 
     def get_packet(self, index):
         """Obtiene un paquete específico por su índice"""

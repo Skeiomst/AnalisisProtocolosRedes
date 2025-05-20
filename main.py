@@ -17,6 +17,7 @@ class NetworkAnalyzerGUI(ctk.CTk):
         self.packet_analyzer = PacketAnalyzer()
         self.capture_thread = None
         self.is_capturing = False
+        self.is_unique_capturing = False
 
         # Crear el frame principal
         self.main_frame = ctk.CTkFrame(self)
@@ -29,6 +30,9 @@ class NetworkAnalyzerGUI(ctk.CTk):
         # Botones de control
         self.start_button = ctk.CTkButton(self.control_frame, text="Iniciar Captura", command=self.toggle_capture)
         self.start_button.pack(side="left", padx=5)
+
+        self.unique_capture_button = ctk.CTkButton(self.control_frame, text="Captura Única", command=self.toggle_unique_capture)
+        self.unique_capture_button.pack(side="left", padx=5)
 
         self.clear_button = ctk.CTkButton(self.control_frame, text="Limpiar", command=self.clear_packets)
         self.clear_button.pack(side="left", padx=5)
@@ -73,9 +77,51 @@ class NetworkAnalyzerGUI(ctk.CTk):
         else:
             self.stop_capture()
 
+    def toggle_unique_capture(self):
+        if not self.is_unique_capturing:
+            self.start_unique_capture()
+        else:
+            self.stop_unique_capture()
+
+    def capture_unique_packets(self):
+        def packet_callback(packet):
+            if self.is_unique_capturing:
+                packet_info = self.packet_analyzer.capture_unique_protocol_packet(packet)
+                if packet_info:
+                    self.after(10, lambda: self.add_packet_to_table(packet_info))
+
+        sniff(prn=packet_callback, store=False)
+
+    def update_button_states(self):
+        """Actualiza el estado de los botones según la situación actual"""
+        if self.is_capturing:
+            # Si está capturando normalmente
+            self.start_button.configure(state="normal")
+            self.unique_capture_button.configure(state="disabled")
+            self.clear_button.configure(state="disabled")
+            self.search_button.configure(state="disabled")
+            self.search_entry.configure(state="disabled")
+        elif self.is_unique_capturing:
+            # Si está en captura única
+            self.start_button.configure(state="disabled")
+            self.unique_capture_button.configure(state="normal")
+            self.clear_button.configure(state="disabled")
+            self.search_button.configure(state="disabled")
+            self.search_entry.configure(state="disabled")
+        else:
+            # Si no está capturando
+            self.start_button.configure(state="normal")
+            self.unique_capture_button.configure(state="normal")
+            # Habilitar búsqueda y limpieza solo si hay paquetes
+            has_packets = len(self.table_rows) > 0
+            self.clear_button.configure(state="normal" if has_packets else "disabled")
+            self.search_button.configure(state="normal" if has_packets else "disabled")
+            self.search_entry.configure(state="normal" if has_packets else "disabled")
+
     def start_capture(self):
         self.is_capturing = True
         self.start_button.configure(text="Detener Captura")
+        self.update_button_states()
         self.capture_thread = Thread(target=self.capture_packets)
         self.capture_thread.daemon = True
         self.capture_thread.start()
@@ -83,15 +129,27 @@ class NetworkAnalyzerGUI(ctk.CTk):
     def stop_capture(self):
         self.is_capturing = False
         self.start_button.configure(text="Iniciar Captura")
+        self.update_button_states()
 
-    def capture_packets(self):
-        def packet_callback(packet):
-            if self.is_capturing:
-                packet_info = self.packet_analyzer.capture_packet(packet)
-                if packet_info['index'] < 30:
-                    self.after(10, lambda: self.add_packet_to_table(packet_info))
+    def start_unique_capture(self):
+        self.is_unique_capturing = True
+        self.unique_capture_button.configure(text="Detener Captura Única")
+        self.update_button_states()
+        self.capture_thread = Thread(target=self.capture_unique_packets)
+        self.capture_thread.daemon = True
+        self.capture_thread.start()
 
-        sniff(prn=packet_callback, store=False)
+    def stop_unique_capture(self):
+        self.is_unique_capturing = False
+        self.unique_capture_button.configure(text="Captura Única")
+        self.update_button_states()
+
+    def clear_packets(self):
+        for row in self.table_rows:
+            row.destroy()
+        self.table_rows.clear()
+        self.packet_analyzer = PacketAnalyzer()
+        self.update_button_states()
 
     def add_packet_to_table(self, packet_info):
         row = len(self.table_rows)
@@ -99,9 +157,14 @@ class NetworkAnalyzerGUI(ctk.CTk):
         row_frame.pack(fill="x", padx=2, pady=1)
         row_frame.bind("<Button-1>", lambda e, p=packet_info: self.show_packet_details(p))
 
+        # Formatear el tiempo
+        minutos = int(packet_info['time']) // 60
+        segundos = packet_info['time'] % 60
+        tiempo_formateado = f"{minutos:02d}:{segundos:06.3f}"
+
         # Añadir datos del paquete
         ctk.CTkLabel(row_frame, text=str(packet_info['index']), width=100).grid(row=0, column=0, padx=2)
-        ctk.CTkLabel(row_frame, text=f"{packet_info['time']:.6f}", width=100).grid(row=0, column=1, padx=2)
+        ctk.CTkLabel(row_frame, text=tiempo_formateado, width=100).grid(row=0, column=1, padx=2)
         ctk.CTkLabel(row_frame, text=packet_info['protocol'], width=100).grid(row=0, column=2, padx=2)
         ctk.CTkLabel(row_frame, text=packet_info['source'], width=200).grid(row=0, column=3, padx=2)
         ctk.CTkLabel(row_frame, text=packet_info['destination'], width=200).grid(row=0, column=4, padx=2)
@@ -109,6 +172,7 @@ class NetworkAnalyzerGUI(ctk.CTk):
         ctk.CTkLabel(row_frame, text=packet_info['info'], width=200).grid(row=0, column=6, padx=2)
 
         self.table_rows.append(row_frame)
+        self.update_button_states()
 
     def show_packet_details(self, packet_info):
         # Crear ventana emergente para detalles
@@ -138,7 +202,12 @@ class NetworkAnalyzerGUI(ctk.CTk):
     def search_packet(self):
         try:
             index = int(self.search_entry.get())
+            # Intentar obtener el paquete de ambas colecciones
             packet_info = self.packet_analyzer.get_packet(index)
+            if not packet_info:
+                # Si no se encuentra en la colección normal, buscar en la colección única
+                packet_info = self.packet_analyzer.get_unique_packet(index)
+            
             if packet_info:
                 self.show_packet_details(packet_info)
             else:
@@ -152,11 +221,14 @@ class NetworkAnalyzerGUI(ctk.CTk):
         error_window.geometry("300x100")
         ctk.CTkLabel(error_window, text=message).pack(padx=20, pady=20)
 
-    def clear_packets(self):
-        for row in self.table_rows:
-            row.destroy()
-        self.table_rows.clear()
-        self.packet_analyzer = PacketAnalyzer()  # Esto reiniciará current_index a 0
+    def capture_packets(self):
+        def packet_callback(packet):
+            if self.is_capturing:
+                packet_info = self.packet_analyzer.capture_packet(packet)
+                if packet_info['index'] < 30:
+                    self.after(10, lambda: self.add_packet_to_table(packet_info))
+
+        sniff(prn=packet_callback, store=False)
 
 if __name__ == "__main__":
     app = NetworkAnalyzerGUI()
