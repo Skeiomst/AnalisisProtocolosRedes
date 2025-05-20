@@ -14,12 +14,14 @@ class PacketAnalyzer:
     def capture_packet(self, packet):
         """Captura y analiza un paquete en tiempo real"""
         self.packets.append(packet)
-        return self.analyze_packet(packet)
+        packet_info = self.analyze_packet(packet)
+        self.current_index += 1  # Incrementar el índice después de analizar el paquete
+        return packet_info
 
     def analyze_packet(self, packet):
         """Analiza un paquete y extrae su información relevante"""
         packet_info = {
-            'index': len(self.packets) - 1,
+            'index': self.current_index,  # Usar current_index en lugar de len(self.packets) - 1
             'time': packet.time,
             'protocol': 'Unknown',
             'source': '',

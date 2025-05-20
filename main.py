@@ -113,7 +113,7 @@ class NetworkAnalyzerGUI(ctk.CTk):
     def show_packet_details(self, packet_info):
         # Crear ventana emergente para detalles
         details_window = ctk.CTkToplevel(self)
-        details_window.title(f"Detalles del Paquete #{packet_info['index']}")
+        details_window.title(f"Detalles del Paquete #{self.search_entry.get() if self.search_entry.get() else packet_info['index']}")
         details_window.geometry("600x400")
 
         # Frame para los detalles
@@ -126,6 +126,11 @@ class NetworkAnalyzerGUI(ctk.CTk):
             if key != 'time':  # Excluir el tiempo para mejor visualización
                 label = ctk.CTkLabel(details_frame, text=f"{key}:", anchor="w")
                 label.grid(row=row, column=0, padx=5, pady=2, sticky="w")
+                
+                # Si es el índice y estamos buscando, usar el índice de búsqueda
+                if key == 'index' and self.search_entry.get():
+                    value = self.search_entry.get()
+                    
                 value_label = ctk.CTkLabel(details_frame, text=str(value), anchor="w")
                 value_label.grid(row=row, column=1, padx=5, pady=2, sticky="w")
                 row += 1
@@ -151,7 +156,7 @@ class NetworkAnalyzerGUI(ctk.CTk):
         for row in self.table_rows:
             row.destroy()
         self.table_rows.clear()
-        self.packet_analyzer = PacketAnalyzer()
+        self.packet_analyzer = PacketAnalyzer()  # Esto reiniciará current_index a 0
 
 if __name__ == "__main__":
     app = NetworkAnalyzerGUI()
